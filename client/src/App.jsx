@@ -8,6 +8,7 @@ import ShoppingCartPage from './pages/ShoppingCartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import InventoryManagementPage from './pages/InventoryManagementPage';
 import AdminAuthPage from './pages/AdminAuthPage';
+import UserDashboardPage from './pages/UserDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -52,6 +53,15 @@ function App() {
                 <ProtectedRoute allowedRoles={['user', 'admin']}>
                   <Navbar />
                   <CheckoutPage />
+                  <Footer />
+                </ProtectedRoute>
+              </>
+            } />
+            <Route path="/dashboard" element={
+              <>
+                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                  <Navbar />
+                  <UserDashboardPage />
                   <Footer />
                 </ProtectedRoute>
               </>

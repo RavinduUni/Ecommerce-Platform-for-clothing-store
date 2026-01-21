@@ -16,6 +16,7 @@ const AppContextProvider = ({ children }) => {
 
   const [allProducts, setAllProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState([]);
 
   const fetchProducts = async () => {
     try {
@@ -54,6 +55,31 @@ const AppContextProvider = ({ children }) => {
       setCart(data.cart.items);
     } catch (error) {
       alert(error.response?.data?.message || "Error updating cart quantity");
+    }
+  }
+
+  const fetchOrders = async () => {
+    if (!token) {
+      setOrders([]);
+      return;
+    }
+    setOrders([]);
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/users/orders`);
+      setOrders(data.orders);
+    } catch (error) {
+      console.error("Error fetching orders", error);
+    }
+  }
+
+  const createOrder = async (orderData) => {
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/users/orders`, orderData);
+      await fetchOrders();
+      await fetchCart();
+      return data.order;
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -128,6 +154,9 @@ const AppContextProvider = ({ children }) => {
     setCart,
     fetchCart,
     removeFromCart,
+    orders,
+    fetchOrders,
+    createOrder,
     updateCartQuantity,
     logout
   };

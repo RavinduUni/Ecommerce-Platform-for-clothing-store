@@ -8,8 +8,14 @@ const Navbar = () => {
   const { cart, logout } = useContext(AppContext);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const isLoggedIn = !!localStorage.getItem('token');
+
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+  };
 
 
 
@@ -46,12 +52,47 @@ const Navbar = () => {
               <span className="absolute -top-1 -right-1 bg-primary text-[#181611] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">{cart.length}</span>
             </Link>
             {isLoggedIn ? (
-              <div className=''>
+              <div className='relative'>
                 <button
-                  className="material-symbols-outlined"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="material-symbols-outlined hover:text-primary transition-colors"
                 >
                   person
                 </button>
+                {isUserMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)}></div>
+                    <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-[#221d10] border border-[#181611]/10 dark:border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
+                      <div className="p-4 border-b border-[#181611]/10 dark:border-white/10">
+                        <p className="text-sm font-semibold">My Account</p>
+                        <p className="text-xs text-[#181611]/60 dark:text-white/60 mt-1">{localStorage.getItem('userEmail')}</p>
+                      </div>
+                      <Link 
+                        to="/dashboard" 
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#181611]/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-lg">dashboard</span>
+                        My Dashboard
+                      </Link>
+                      <Link 
+                        to="/dashboard" 
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#181611]/5 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-lg">shopping_bag</span>
+                        My Orders
+                      </Link>
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#181611]/5 dark:hover:bg-white/5 transition-colors text-red-600 dark:text-red-400"
+                      >
+                        <span className="material-symbols-outlined text-lg">logout</span>
+                        Logout
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <button

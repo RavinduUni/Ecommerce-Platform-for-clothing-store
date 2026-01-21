@@ -14,6 +14,7 @@ function UserAuthModal({ isOpen, onClose }) {
     name: '',
     confirmPassword: ''
   });
+  const [processing, setProcessing] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -25,25 +26,34 @@ function UserAuthModal({ isOpen, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
+
+    try {
+      if (!isLogin && formData.password !== formData.confirmPassword) {
+        alert('Passwords do not match');
+        return;
+      }
+
+      //Implement API call for authentication
+      setProcessing(true);
+      const { data } = await axios.post(`${backendUrl}/api/users/${isLogin ? 'login' : 'register'}`, formData);
+
+      if (data.success) {
+        setToken(data.token);
+        localStorage.setItem('token', data.token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        onClose();
+        navigate(0);
+      } else {
+        alert(data.message || 'Authentication failed');
+        // Close modal on success
+        onClose();
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || 'An error occurred during authentication');
+    } finally {
+      setProcessing(false);
     }
 
-    //Implement API call for authentication
-    const {data} = await axios.post(`${backendUrl}/api/users/${isLogin ? 'login' : 'register'}`, formData);
-     
-    if (data.success) {
-      setToken(data.token);
-      localStorage.setItem('token', data.token);
-      onClose();
-      navigate(0);
-    } else {
-      alert(data.message);
-      // Close modal on success
-      onClose();
-    }
   };
 
   const toggleAuthMode = () => {
@@ -61,7 +71,7 @@ function UserAuthModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       ></div>
@@ -177,9 +187,11 @@ function UserAuthModal({ isOpen, onClose }) {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-primary hover:bg-[#b8900f] text-[#181611] font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider"
+              disabled={processing}
+              className={`w-full bg-primary hover:bg-[#b8900f] text-[#181611] font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider cursor-pointer
+                ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              {processing ? isLogin ? 'Signing In...' : 'Creating Account...' : isLogin ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 
