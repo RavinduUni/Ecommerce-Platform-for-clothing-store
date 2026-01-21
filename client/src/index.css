@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #d4a411;
+  --color-background-light: #f8f8f6;
+  --color-background-dark: #221d10;
+
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+
+  --radius: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+body {
+  font-family: var(--font-display);
+  margin: 0;
+  padding: 0;
+}
+
+/* Material Symbols Configuration */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Product Card Hover Effects */
+.product-card:hover .alternate-view {
+  opacity: 1;
+}
+
+.alternate-view {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.product-card img {
+  transition: transform 0.4s ease-out;
+}
+
+.product-card:hover img {
+  transform: scale(1.02);
+}
+
+.quick-add-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.product-card:hover .quick-add-btn {
+  opacity: 1;
+}
+
+/* Sticky Column for Product Details */
+.sticky-column {
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+}
+
+/* Scrollbar Hide Utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

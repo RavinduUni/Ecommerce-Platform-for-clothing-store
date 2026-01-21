@@ -1,0 +1,111 @@
+import axios from 'axios';
+import React, { useEffect, useState } from 'react'
+import { createContext } from 'react';
+import { jwtDecode } from 'jwt-decode';
+
+export const AppContext = createContext();
+
+const AppContextProvider = ({ children }) => {
+
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [role, setRole] = useState(null);
+
+  const [allProducts, setAllProducts] = useState([]);
+  const [cart, setCart] = useState([]);
+
+  const fetchProducts = async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/products/all`);
+      setAllProducts(data.products);
+    } catch (error) {
+      alert(error.response?.data?.message || "Error fetching products");
+    }
+  }
+
+  const fetchCart = async () => {
+    if (!token) {
+      setCart([]);
+      return;
+    }
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/users/cart`);
+      setCart(data.cart.items);
+    } catch (error) {
+      alert(error.response?.data?.message || "Error fetching cart");
+    }
+  }
+
+  const removeFromCart = async (productId, size) => {
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/users/remove-from-cart`, { productId, size });
+      setCart(data.cart.items);
+    } catch (error) {
+      alert(error.response?.data?.message || "Error removing item from cart");
+    }
+  }
+
+  const updateCartQuantity = async (productId, size, quantity) => {
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/users/update-cart`, { productId, size, quantity });
+      setCart(data.cart.items);
+    } catch (error) {
+      alert(error.response?.data?.message || "Error updating cart quantity");
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setRole(null);
+      setCart([]);
+      delete axios.defaults.headers.common['Authorization'];
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(token);
+      setRole(decoded.role);
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      fetchCart();
+
+    } catch (error) {
+      setToken(null);
+    } finally {
+      setAuthLoading(false);
+    }
+
+  }, [token]);
+
+
+  const value = {
+    backendUrl,
+    authLoading,
+    token,
+    setToken,
+    role,
+    allProducts,
+    fetchProducts,
+    cart,
+    setCart,
+    fetchCart,
+    removeFromCart,
+    updateCartQuantity
+  };
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  )
+}
+
+export default AppContextProvider;
