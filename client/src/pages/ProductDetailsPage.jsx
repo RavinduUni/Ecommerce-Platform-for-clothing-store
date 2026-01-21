@@ -153,7 +153,8 @@ const ProductDetailsPage = () => {
                   <span className="material-symbols-outlined">shopping_cart</span>
                   {isAddingToCart ? "Adding to Cart..." : "Add to Cart"}
                 </button>
-                <Link to="/cart" className="w-full bg-white dark:bg-transparent border border-[#181611] dark:border-white text-[#181611] dark:text-white py-4 rounded-lg font-bold text-lg hover:bg-[#181611] hover:text-white dark:hover:bg-white dark:hover:text-background-dark transition-all text-center">
+                <Link 
+                 to="/checkout" className="w-full bg-white dark:bg-transparent border border-[#181611] dark:border-white text-[#181611] dark:text-white py-4 rounded-lg font-bold text-lg hover:bg-[#181611] hover:text-white dark:hover:bg-white dark:hover:text-background-dark transition-all text-center">
                   Checkout Now
                 </Link>
               </div>
@@ -195,9 +196,9 @@ const ProductDetailsPage = () => {
       <section className="mt-24 mb-16">
         <h2 className="text-2xl font-serif mb-8 text-center">Complete the Look</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {completeTheLook.map((item) => (
-            <Link to={`/product/${item.id}`} key={item.id} className="group cursor-pointer">
-              <div className="relative aspect-[3/4] bg-center bg-cover rounded-lg overflow-hidden mb-4" style={{ backgroundImage: `url(${item.image})` }}>
+          {allProducts.slice(0, 4).map((item) => (
+            <Link to={`/product/${item._id}`} key={item._id} className="group cursor-pointer">
+              <div className="relative aspect-[3/4] bg-center bg-cover rounded-lg overflow-hidden mb-4" style={{ backgroundImage: `url(${item.images[0]})` }}>
                 <button className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-black/80 py-2 rounded font-bold text-xs uppercase opacity-0 group-hover:opacity-100 transition-opacity">Quick Add</button>
               </div>
               <h3 className="font-medium text-sm group-hover:text-primary transition-colors">{item.name}</h3>

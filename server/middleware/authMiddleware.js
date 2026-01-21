@@ -7,7 +7,12 @@ export const protectedRoute = async (req, res, next) => {
         const token = req.headers.authorization.split(" ")[1];
 
         if (!token) {
-            return res.status(401).json({ success: false, message: "Unauthorized" });
+            return res.status(401).json({ success: false, message: "Please log in" });
+        }
+
+        const isExpired = jwt.decode(token).exp * 1000 < Date.now();
+        if (isExpired) {
+            return res.status(401).json({ success: false, message: "Token expired" });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);

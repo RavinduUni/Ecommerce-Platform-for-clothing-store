@@ -28,6 +28,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         )
     }
 
+    //Token exists but role not yet ready -> WAIT
+    if (!role) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    }
+
     if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
 
         if (isAdminRoute) {

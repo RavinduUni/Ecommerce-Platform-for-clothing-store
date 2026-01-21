@@ -100,10 +100,8 @@ export const getCart = async (req, res) => {
 
         let cart = await Cart.findOne({ userId });
 
-        
-
         if (!cart) {
-            return res.status(400).json({ success: false, message: "Cart not found" });
+            return res.status(400).json({ success: false, message: "Add items to cart" });
         }
 
         res.status(200).json({ success: true, cart });
@@ -121,7 +119,7 @@ export const removeFromCart = async (req, res) => {
         let cart = await Cart.findOne({ userId });
 
         if (!cart) {
-            return res.status(400).json({ success: false, message: "Cart not found" });
+            return res.status(400).json({ success: false, message: "Add items to cart" });
         }
         cart.items = cart.items.filter(
             item => !(item.productId.toString() === productId && item.size === size)
@@ -144,7 +142,7 @@ export const updateCart = async (req, res) => {
         let cart = await Cart.findOne({ userId });
 
         if (!cart) {
-            return res.status(400).json({ success: false, message: "Cart not found" });
+            return res.status(400).json({ success: false, message: "Add items to cart" });
         }
 
         const item = cart.items.find(

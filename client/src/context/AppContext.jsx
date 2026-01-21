@@ -35,7 +35,7 @@ const AppContextProvider = ({ children }) => {
       const { data } = await axios.get(`${backendUrl}/api/users/cart`);
       setCart(data.cart.items);
     } catch (error) {
-      alert(error.response?.data?.message || "Error fetching cart");
+      alert("Error fetching cart");
     }
   }
 
@@ -57,31 +57,60 @@ const AppContextProvider = ({ children }) => {
     }
   }
 
+  const logout = () => {
+    setToken(null);
+    localStorage.removeItem('token');
+    setRole(null);
+    setCart([]);
+    delete axios.defaults.headers.common['Authorization'];
+  }
+
   useEffect(() => {
     fetchProducts();
   }, []);
 
   useEffect(() => {
     if (!token) {
-      setRole(null);
-      setCart([]);
-      delete axios.defaults.headers.common['Authorization'];
+      logout();
       setAuthLoading(false);
       return;
     }
 
+    let logoutTimer;
+
     try {
       const decoded = jwtDecode(token);
+
+      const expiryTime = decoded.exp * 1000;
+      const now = Date.now();
+
+      if (expiryTime < now) {
+        logout();
+        setAuthLoading(false);
+        return;
+      }
+
       setRole(decoded.role);
-
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
       fetchCart();
 
+      const remainingTime = expiryTime - now;
+      logoutTimer = setTimeout(() => {
+        logout();
+      }, remainingTime);
+
     } catch (error) {
-      setToken(null);
+      logout();
+      setCart([]);
+      delete axios.defaults.headers.common['Authorization'];
     } finally {
       setAuthLoading(false);
+    }
+
+    return () => {
+      if (logoutTimer) {
+        clearTimeout(logoutTimer);
+      }
     }
 
   }, [token]);
@@ -99,7 +128,8 @@ const AppContextProvider = ({ children }) => {
     setCart,
     fetchCart,
     removeFromCart,
-    updateCartQuantity
+    updateCartQuantity,
+    logout
   };
   return (
     <AppContext.Provider value={value}>
