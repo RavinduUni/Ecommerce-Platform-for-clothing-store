@@ -73,7 +73,7 @@ const AppContextProvider = ({ children }) => {
       setOrders([]);
       return;
     }
-    setOrders([]);
+    
     try {
       const { data } = await axios.get(`${backendUrl}/api/users/orders`);
       setOrders(data.orders);
@@ -103,6 +103,7 @@ const AppContextProvider = ({ children }) => {
 
   useEffect(() => {
     fetchProducts();
+    fetchOrders();
   }, []);
 
   useEffect(() => {
@@ -128,7 +129,6 @@ const AppContextProvider = ({ children }) => {
 
       setRole(decoded.role);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
       fetchCart();
       userDetails();
 

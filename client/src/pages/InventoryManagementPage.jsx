@@ -1,6 +1,8 @@
 import axios from 'axios';
-import { useContext, useState } from 'react';
+import { useContext, useState, useRef, useEffect } from 'react';
 import { AppContext } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
+import { AdminContext } from '../context/AdminContext';
 
 const InventoryManagementPage = () => {
   const [showModal, setShowModal] = useState(false);
@@ -21,11 +23,37 @@ const InventoryManagementPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [activeView, setActiveView] = useState('inventory'); // 'inventory' or 'orders'
+  const [showLogoutDropdown, setShowLogoutDropdown] = useState(false);
 
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-  const { allProducts, fetchProducts } = useContext(AppContext);
+  const { allProducts, orders } = useContext(AppContext);
+  const { adminLogout} = useContext(AdminContext);
 
+  // Handle clicking outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowLogoutDropdown(false);
+      }
+    };
+
+    if (showLogoutDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showLogoutDropdown]);
+
+  const handleLogout = () => {
+    adminLogout();
+    navigate('/admin/login');
+  };
 
   const getStatusClass = (color) => {
     const classes = {
@@ -556,10 +584,22 @@ const InventoryManagementPage = () => {
                 <h1 className="text-xl font-bold tracking-tight">LUXE <span className="text-primary">ADMIN</span></h1>
               </div>
               <nav className="hidden md:flex items-center gap-6 ml-4">
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#dashboard">Dashboard</a>
-                <a className="text-sm font-semibold text-primary" href="#inventory">Inventory</a>
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#orders">Orders</a>
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#analytics">Analytics</a>
+                <button 
+                  className={`text-sm font-semibold transition-colors ${
+                    activeView === 'inventory' ? 'text-primary' : 'text-slate-500 hover:text-primary'
+                  }`}
+                  onClick={() => setActiveView('inventory')}
+                >
+                  Inventory
+                </button>
+                <button 
+                  className={`text-sm font-semibold transition-colors ${
+                    activeView === 'orders' ? 'text-primary' : 'text-slate-500 hover:text-primary'
+                  }`}
+                  onClick={() => setActiveView('orders')}
+                >
+                  Orders
+                </button>
               </nav>
             </div>
             <div className="flex items-center gap-4">
@@ -568,20 +608,39 @@ const InventoryManagementPage = () => {
                 <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
               </button>
               <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800"></div>
-              <div className="flex items-center gap-3 pl-2">
+              <div className="flex items-center gap-3 pl-2 relative" ref={dropdownRef}>
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-bold">Store Manager</p>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider">Admin</p>
                 </div>
-                <div className="size-10 rounded-full bg-primary/20 border-2 border-primary/10 overflow-hidden flex items-center justify-center">
+                <button 
+                  onClick={() => setShowLogoutDropdown(!showLogoutDropdown)}
+                  className="size-10 rounded-full bg-primary/20 border-2 border-primary/10 overflow-hidden flex items-center justify-center hover:bg-primary/30 transition-colors cursor-pointer"
+                >
                   <span className="material-symbols-outlined text-primary">person</span>
-                </div>
+                </button>
+                
+                {/* Logout Dropdown */}
+                {showLogoutDropdown && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-3"
+                    >
+                      <span className="material-symbols-outlined text-lg text-red-500">logout</span>
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </header>
 
         <main className="max-w-[1440px] mx-auto px-6 py-8">
+          {activeView === 'inventory' ? (
+            // INVENTORY VIEW
+            <>
           {/* Page Heading & Quick Actions */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
             <div>
@@ -662,7 +721,7 @@ const InventoryManagementPage = () => {
                       <td className="px-6 py-4 text-sm font-bold text-right">{product.price}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center bg-slate-100 dark:bg-slate-800 px-3 py-1 w-16 mx-auto rounded-md">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{product.stock}</span>
+                          <span className="text-sm font-mono font-bold text-slate-900 dark:text-white">{product.availableSizes.reduce((total, size) => total + size.qty, 0)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -734,6 +793,191 @@ const InventoryManagementPage = () => {
               <p className="text-2xl font-black text-amber-500">5</p>
             </div>
           </div>
+            </>
+          ) : (
+            // ORDERS VIEW
+            <>
+              {/* Page Heading */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Order Management</h2>
+                  <p className="text-slate-500 dark:text-slate-400 mt-1">Track and manage customer orders.</p>
+                </div>
+                <div className="flex gap-3">
+                  <button className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                    <span className="material-symbols-outlined text-lg">file_download</span>
+                    Export Orders
+                  </button>
+                </div>
+              </div>
+
+              {/* Orders Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <span className="material-symbols-outlined text-primary">shopping_cart</span>
+                    </div>
+                    <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">+12.5%</span>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Total Orders</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">{orders.length}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="size-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                      <span className="material-symbols-outlined text-green-600 dark:text-green-400">payments</span>
+                    </div>
+                    <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">+8.2%</span>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Total Revenue</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">
+                    ${orders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="size-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                      <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">schedule</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                      {orders.filter(o => o.status === 'placed' || o.status === 'processing').length} active
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Pending Orders</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">
+                    {orders.filter(o => o.status === 'placed' || o.status === 'processing').length}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="size-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                      <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                    </div>
+                    <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                      {orders.filter(o => o.status === 'delivered').length}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Delivered</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">
+                    {orders.filter(o => o.status === 'delivered').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Orders Table */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500">Order ID</th>
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500">Customer</th>
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500">Date</th>
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500 text-center">Items</th>
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500 text-right">Total ($)</th>
+                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {orders.map((order) => {
+                        const statusConfig = {
+                          delivered: { color: 'green', icon: 'check_circle' },
+                          processing: { color: 'blue', icon: 'autorenew' },
+                          shipped: { color: 'amber', icon: 'local_shipping' },
+                          placed: { color: 'slate', icon: 'schedule' },
+                          cancelled: { color: 'red', icon: 'cancel' }
+                        };
+                        const config = statusConfig[order.status] || statusConfig.placed;
+                        
+                        return (
+                          <tr key={order._id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="font-mono font-bold text-sm text-primary">{order.orderNumber}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-slate-400 text-lg">person</span>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-900 dark:text-white text-sm">{order.shippingAddress?.fullName || 'N/A'}</p>
+                                  <p className="text-xs text-slate-500">{order.shippingAddress?.email || 'N/A'}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                              {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-center">
+                                <span className="bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md text-sm font-bold">{order.items?.length || 0}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <p className="font-black text-slate-900 dark:text-white">${(order.pricing?.total || 0).toFixed(2)}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${getStatusClass(config.color)}`}>
+                                <span className="material-symbols-outlined text-sm">{config.icon}</span>
+                                {order.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Orders Pagination */}
+                <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-500">
+                    Showing <span className="font-bold text-slate-900 dark:text-white">1-{orders.length}</span> of <span className="font-bold text-slate-900 dark:text-white">{orders.length}</span> orders
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button className="size-8 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 cursor-not-allowed opacity-40">
+                      <span className="material-symbols-outlined text-lg">chevron_left</span>
+                    </button>
+                    <button className="size-8 flex items-center justify-center rounded border text-sm font-medium bg-primary text-white border-primary">
+                      1
+                    </button>
+                    <button className="size-8 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-40">
+                      <span className="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Summary Cards */}
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Average Order Value</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">
+                    ${orders.length > 0 ? (orders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0) / orders.filter(o => o.status !== 'cancelled').length).toFixed(2) : '0.00'}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Processing</p>
+                  <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                    {orders.filter(o => o.status === 'processing').length}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">In Transit</p>
+                  <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                    {orders.filter(o => o.status === 'shipped').length}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Cancelled</p>
+                  <p className="text-2xl font-black text-red-500">
+                    {orders.filter(o => o.status === 'cancelled').length}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </>

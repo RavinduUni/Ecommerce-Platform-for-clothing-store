@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
-import generateToken from '../utils/generateToken.js';
+import {generateToken} from '../utils/generateToken.js';
 import Cart from '../models/Cart.js';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';

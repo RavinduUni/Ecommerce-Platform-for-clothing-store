@@ -10,74 +10,84 @@ import InventoryManagementPage from './pages/InventoryManagementPage';
 import AdminAuthPage from './pages/AdminAuthPage';
 import UserDashboardPage from './pages/UserDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminContextProvider from './context/AdminContext';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 function App() {
   return (
     <Router>
       <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
-        <div className="layout-container flex h-full grow flex-col bg-background-light dark:bg-background-dark text-[#181611] dark:text-[#f4f3f0]">
-          <Routes>
-            {/* Main Customer Routes */}
-            <Route path="/" element={
-              <>
-                <Navbar />
-                <HomePage />
-                <Footer />
-              </>
-            } />
-            <Route path="/products" element={
-              <>
-                <Navbar />
-                <ProductListingPage />
-                <Footer />
-              </>
-            } />
-            <Route path="/product/:id" element={
-              <>
-                <Navbar />
-                <ProductDetailsPage />
-                <Footer />
-              </>
-            } />
-            <Route path="/cart" element={
-              <>
-                <ProtectedRoute allowedRoles={['user', 'admin']}>
+        <AdminContextProvider>
+          <div className="layout-container flex h-full grow flex-col bg-background-light dark:bg-background-dark text-[#181611] dark:text-[#f4f3f0]">
+            <Routes>
+              {/* Main Customer Routes */}
+              <Route path="/" element={
+                <>
                   <Navbar />
-                  <ShoppingCartPage />
+                  <HomePage />
                   <Footer />
-                </ProtectedRoute>
-              </>
-            } />
-            <Route path="/checkout" element={
-              <>
-                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                </>
+              } />
+              <Route path="/products" element={
+                <>
                   <Navbar />
-                  <CheckoutPage />
+                  <ProductListingPage />
                   <Footer />
-                </ProtectedRoute>
-              </>
-            } />
-            <Route path="/dashboard" element={
-              <>
-                <ProtectedRoute allowedRoles={['user', 'admin']}>
+                </>
+              } />
+              <Route path="/product/:id" element={
+                <>
                   <Navbar />
-                  <UserDashboardPage />
+                  <ProductDetailsPage />
                   <Footer />
-                </ProtectedRoute>
-              </>
-            } />
+                </>
+              } />
+              <Route path="/cart" element={
+                <>
+                  <ProtectedRoute allowedRoles={['user', 'admin']}>
+                    <Navbar />
+                    <ShoppingCartPage />
+                    <Footer />
+                  </ProtectedRoute>
+                </>
+              } />
+              <Route path="/checkout" element={
+                <>
+                  <ProtectedRoute allowedRoles={['user', 'admin']}>
+                    <Navbar />
+                    <CheckoutPage />
+                    <Footer />
+                  </ProtectedRoute>
+                </>
+              } />
+              <Route path="/dashboard" element={
+                <>
+                  <ProtectedRoute allowedRoles={['user', 'admin']}>
+                    <Navbar />
+                    <UserDashboardPage />
+                    <Footer />
+                  </ProtectedRoute>
+                </>
+              } />
 
-            {/* Authentication Routes - No Navbar/Footer */}
-            <Route path="/admin/login" element={<AdminAuthPage />} />
+              {/* Authentication Routes - No Navbar/Footer */}
+              <Route path="/admin/login"
+                element={
+                  <AdminAuthPage />
+                }
+              />
 
-            {/* Admin Routes - No Navbar/Footer */}
-            <Route path="/admin/inventory" element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <InventoryManagementPage />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </div>
+              {/* Admin Routes - No Navbar/Footer */}
+              <Route path="/admin/inventory" element={
+                <AdminProtectedRoute allowedRoles={['admin']}>
+                  <InventoryManagementPage />
+                </AdminProtectedRoute>
+              } />
+
+
+            </Routes>
+          </div>
+        </AdminContextProvider>
       </div>
     </Router>
   );

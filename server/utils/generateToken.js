@@ -6,4 +6,10 @@ const generateToken = (id, role) => {
     });
 }
 
-export default generateToken;
+const generateAdminToken = (adminId) => {
+    return jwt.sign({ id: adminId, role: 'admin' }, process.env.ADMIN_JWT_SECRET, {
+        expiresIn: '1d',
+    });
+}
+
+export { generateToken, generateAdminToken };

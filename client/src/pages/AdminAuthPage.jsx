@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminContext } from '../context/AdminContext';
 
 function AdminAuthPage() {
+
+  const { adminLogin, adminRegister } = useContext(AdminContext);
+
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -11,6 +18,7 @@ function AdminAuthPage() {
     confirmPassword: ''
   });
   const navigate = useNavigate();
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -22,27 +30,31 @@ function AdminAuthPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!isLogin && formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
+      return setError("Passwords do not match");
     }
 
-    // TODO: Implement API call for admin authentication
-    console.log('Admin form submitted:', { isLogin, formData });
-    
-    // Simulate successful authentication
-    if (isLogin) {
-      // Admin login logic
-      console.log('Logging in admin...');
-    } else {
-      // Admin register logic
-      console.log('Registering admin...');
+    try {
+      setSubmitting(true);
+
+      if (isLogin) {
+        await adminLogin(formData.email, formData.password);
+      } else {
+        await adminRegister(formData.name, formData.email, formData.password, formData.confirmPassword, formData.adminCode);
+      }
+      navigate('/admin/inventory');
+    } catch (error) {
+      setError(error.response?.data?.message || "Authentication failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const toggleAuthMode = () => {
     setIsLogin(!isLogin);
+    setError(null);
+    setSubmitting(false);
     setFormData({
       email: '',
       password: '',
@@ -67,7 +79,7 @@ function AdminAuthPage() {
                 </div>
               </div>
               <h1 className="text-3xl font-bold text-[#f8f8f6] mb-2">
-                {isLogin ? 'Admin Portal' : 'Admin Registration'}
+                {isLogin ? `${submitting ? 'Submitting...' : 'Admin Portal'}` : `${submitting ? 'Submitting...' : 'Admin Registration'}`}
               </h1>
               <p className="text-[#b0a88e]">
                 {isLogin ? 'Secure administrative access' : 'Create new admin account'}
@@ -176,6 +188,7 @@ function AdminAuthPage() {
                   <button
                     type="button"
                     className="text-sm text-primary hover:text-[#b8900f] font-medium transition-colors"
+                    disabled={submitting}
                   >
                     Forgot password?
                   </button>
@@ -185,12 +198,13 @@ function AdminAuthPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-[#b8900f] text-[#181611] font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider"
+                disabled={submitting}
+                className={`w-full bg-primary hover:bg-[#b8900f] text-[#181611] font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider 
+                  ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isLogin ? 'Admin Sign In' : 'Create Admin Account'}
+                {isLogin ? `${submitting ? 'Submitting...' : 'Admin Sign In'}` : `${submitting ? 'Submitting...' : 'Create Admin Account'}`}
               </button>
             </form>
-
             {/* Toggle Auth Mode */}
             <div className="mt-6 text-center">
               <p className="text-[#b0a88e]">
