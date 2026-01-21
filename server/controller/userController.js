@@ -4,6 +4,7 @@ import generateToken from '../utils/generateToken.js';
 import Cart from '../models/Cart.js';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import mongoose from 'mongoose';
 
 export const registerUser = async (req, res) => {
     try {
@@ -66,12 +67,49 @@ export const loginUser = async (req, res) => {
     }
 }
 
+export const getUserProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const user = await User.findById(userId).select("-password");
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.status(200).json({ success: true, user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch user profile", error: error.message });
+    }
+}
+
 
 export const addToCart = async (req, res) => {
     try {
         const userId = req.user._id;
-
         const { productId, size, quantity } = req.body;
+
+        if (quantity <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid Quantity" });
+        }
+
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        const sizeEntry = product.availableSizes.find(s => s.size === size);
+
+        if (!sizeEntry) {
+            return res.status(400).json({ success: false, message: "Selected size not available" });
+        }
+
+        if (sizeEntry.qty <= 0) {
+            return res.status(400).json({ success: false, message: "Selected size is out of stock" });
+        }
+
+        if (quantity > sizeEntry.qty) {
+            return res.status(400).json({ success: false, message: `Only ${sizeEntry.qty} items available in size ${size}` });
+        }
 
         let cart = await Cart.findOne({ userId });
 
@@ -82,6 +120,13 @@ export const addToCart = async (req, res) => {
         const existingItem = cart.items.find(
             item => item.productId.toString() === productId && item.size === size
         )
+
+        const currentQty = existingItem ? existingItem.quantity : 0;
+        const totalRequestedQty = currentQty + quantity;
+
+        if (totalRequestedQty > sizeEntry.qty) {
+            return res.status(400).json({ success: false, message: `Only ${sizeEntry.qty} items available in size ${size}` });
+        }
 
         if (existingItem) {
             existingItem.quantity += quantity;
@@ -165,84 +210,109 @@ export const updateCart = async (req, res) => {
     }
 }
 
+
 export const createOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const userId = req.user._id;
-        const { items, shippingAddress, paymentMethod, paymentDetails, pricing } = req.body;
+        const { items, shippingAddress, paymentMethod, paymentDetails } = req.body;
 
         if (!items || items.length === 0) {
-            return res.status(400).json({ success: false, message: "No items to place order" });
+            throw new Error("No items to place order");
         }
 
         let orderItems = [];
         let subtotal = 0;
 
-        // 1. Recalculate everything from DB
         for (const item of items) {
-            const product = await Product.findById(item.productId);
+            const product = await Product.findById(item.productId).session(session); 
+
             if (!product) {
-                return res.status(400).json({ success: false, message: `Product not found: ${item.productId}` });
+                throw new Error(`Product not found: ${item.productId}`);
             }
 
-            const price = product.price;
-            const totalItemPrice = price * item.quantity;
+            const sizeEntry = product.availableSizes.find(s => s.size === item.size);
 
-            subtotal += totalItemPrice;
+            if (!sizeEntry || sizeEntry.qty < item.quantity) {
+                throw new Error(`Insufficient stock for ${product.name} size ${item.size}`);
+            }
+
+            // Deduct stock
+            sizeEntry.qty -= item.quantity;
+            await product.save({ session }); 
+
+            const price = product.price;
+            subtotal += price * item.quantity;
 
             orderItems.push({
                 productId: product._id,
                 name: product.name,
                 image: product.images[0],
-                price: price,
+                price,
                 quantity: item.quantity,
                 size: item.size
-            })
+            });
         }
 
-        // 2. Calculate fees
         const tax = subtotal * 0.08;
         const shipping = subtotal > 100 ? 0 : 15;
         const total = subtotal + tax + shipping;
 
-        const finalPricing = {
-            subtotal,
-            tax,
-            shipping,
-            discount: 0,
-            total
-        };
-
-        const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-        const order = await Order.create({
-            orderNumber,
+        const order = await Order.create([{
+            orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             userId,
             items: orderItems,
             shippingAddress,
             paymentMethod,
             paymentDetails,
-            pricing: finalPricing,
+            pricing: {
+                subtotal,
+                tax,
+                shipping,
+                discount: 0,
+                total
+            },
             timeline: [{
-                status: 'placed',
+                status: "placed",
                 timestamp: new Date(),
-                note: 'Order has been placed successfully'
+                note: "Order placed"
             }]
+        }], { session }); 
+
+        await Cart.findOneAndUpdate(
+            { userId },
+            { items: [] },
+            { session }
+        ); 
+
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json({
+            success: true,
+            message: "Order created successfully",
+            order: order[0]
         });
 
-        // Clear cart after order
-        await Cart.findOneAndUpdate({ userId }, { items: [] });
-
-        res.status(201).json({ success: true, message: "Order created successfully", order });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Failed to create order", error: error.message });
+        await session.abortTransaction();
+        session.endSession();
+
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
-}
+};
+
 
 export const getUserOrders = async (req, res) => {
     try {
         const userId = req.user._id;
         const orders = await Order.find({ userId }).sort({ createdAt: -1 });
-        
+
         res.status(200).json({ success: true, orders });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch orders", error: error.message });

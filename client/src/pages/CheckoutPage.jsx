@@ -18,7 +18,7 @@ const CheckoutPage = () => {
     city: '',
     state: '',
     zipCode: '',
-    country: 'United States',
+    country: '',
     email: '',
     phone: '',
     cardName: '',

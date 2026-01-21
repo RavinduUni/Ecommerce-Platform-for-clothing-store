@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { addToCart, createOrder, getCart, getOrderById, getUserOrders, loginUser, registerUser, removeFromCart, updateCart } from "../controller/userController.js";
+import { addToCart, createOrder, getCart, getOrderById, getUserOrders, getUserProfile, loginUser, registerUser, removeFromCart, updateCart } from "../controller/userController.js";
 import { protectedRoute } from "../middleware/authMiddleware.js";
 
 const userRouter = Router();
 
 userRouter.post('/register', registerUser);
 userRouter.post('/login', loginUser);
+userRouter.get('/profile', protectedRoute, getUserProfile);
 
 userRouter.post('/add-to-cart', protectedRoute, addToCart);
 userRouter.get('/cart', protectedRoute, getCart);

@@ -3,9 +3,10 @@ import { AppContext } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 
 const UserDashboardPage = () => {
-  const { orders, fetchOrders, backendUrl } = useContext(AppContext);
+  const { orders, fetchOrders, user } = useContext(AppContext);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeTab, setActiveTab] = useState('orders');
+  
 
   useEffect(() => {
     fetchOrders();
@@ -226,7 +227,7 @@ const UserDashboardPage = () => {
       <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-12">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold uppercase tracking-tight mb-2">My Dashboard</h1>
+          <h1 className="text-4xl font-bold uppercase tracking-tight mb-2">Welcome {user?.name}</h1>
           <p className="text-[#181611]/60 dark:text-white/60">Manage your orders and account</p>
         </div>
 
@@ -346,11 +347,11 @@ const UserDashboardPage = () => {
               <div className="space-y-4 text-sm">
                 <div>
                   <label className="block text-[#181611]/60 dark:text-white/60 uppercase tracking-wider text-xs mb-2">Email</label>
-                  <p className="font-medium">{localStorage.getItem('userEmail') || 'user@example.com'}</p>
+                  <p className="font-medium">{user?.email || 'user@example.com'}</p>
                 </div>
                 <div>
                   <label className="block text-[#181611]/60 dark:text-white/60 uppercase tracking-wider text-xs mb-2">Member Since</label>
-                  <p className="font-medium">January 2026</p>
+                  <p className="font-medium">{new Date(user?.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
                 </div>
               </div>
             </div>

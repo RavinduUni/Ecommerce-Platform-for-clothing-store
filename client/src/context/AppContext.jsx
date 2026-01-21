@@ -13,10 +13,20 @@ const AppContextProvider = ({ children }) => {
 
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [role, setRole] = useState(null);
+  const [user, setUser] = useState(null);
 
   const [allProducts, setAllProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
+
+  const userDetails = async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/users/profile`);
+      setUser(data.user);
+    } catch (error) {
+      alert(error.response?.data?.message || "Error fetching user details");
+    }
+  }
 
   const fetchProducts = async () => {
     try {
@@ -118,7 +128,9 @@ const AppContextProvider = ({ children }) => {
 
       setRole(decoded.role);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
       fetchCart();
+      userDetails();
 
       const remainingTime = expiryTime - now;
       logoutTimer = setTimeout(() => {
@@ -158,7 +170,8 @@ const AppContextProvider = ({ children }) => {
     fetchOrders,
     createOrder,
     updateCartQuantity,
-    logout
+    logout,
+    user
   };
   return (
     <AppContext.Provider value={value}>
