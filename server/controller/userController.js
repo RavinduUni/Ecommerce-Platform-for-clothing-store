@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
 import Cart from '../models/Cart.js';
+import Order from '../models/Order.js';
+import Product from '../models/Product.js';
 
 export const registerUser = async (req, res) => {
     try {
@@ -31,7 +33,7 @@ export const registerUser = async (req, res) => {
 
         const token = generateToken(newUser._id, 'user');
 
-        res.status(201).json({ success: true, message: "User registered successfully", user: newUser, token });
+        res.status(201).json({ success: true, message: "User registered successfully", token });
     } catch (error) {
         res.status(500).json({ success: false, message: "Registration failed", error: error.message });
     }
@@ -63,6 +65,7 @@ export const loginUser = async (req, res) => {
         res.status(500).json({ success: false, message: "Login failed", error: error.message });
     }
 }
+
 
 export const addToCart = async (req, res) => {
     try {
@@ -159,5 +162,106 @@ export const updateCart = async (req, res) => {
         res.status(200).json({ success: true, message: "Cart updated successfully", cart });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to update cart", error: error.message });
+    }
+}
+
+export const createOrder = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { items, shippingAddress, paymentMethod, paymentDetails, pricing } = req.body;
+
+        if (!items || items.length === 0) {
+            return res.status(400).json({ success: false, message: "No items to place order" });
+        }
+
+        let orderItems = [];
+        let subtotal = 0;
+
+        // 1. Recalculate everything from DB
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+            if (!product) {
+                return res.status(400).json({ success: false, message: `Product not found: ${item.productId}` });
+            }
+
+            const price = product.price;
+            const totalItemPrice = price * item.quantity;
+
+            subtotal += totalItemPrice;
+
+            orderItems.push({
+                productId: product._id,
+                name: product.name,
+                image: product.images[0],
+                price: price,
+                quantity: item.quantity,
+                size: item.size
+            })
+        }
+
+        // 2. Calculate fees
+        const tax = subtotal * 0.08;
+        const shipping = subtotal > 100 ? 0 : 15;
+        const total = subtotal + tax + shipping;
+
+        const finalPricing = {
+            subtotal,
+            tax,
+            shipping,
+            discount: 0,
+            total
+        };
+
+        const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        const order = await Order.create({
+            orderNumber,
+            userId,
+            items: orderItems,
+            shippingAddress,
+            paymentMethod,
+            paymentDetails,
+            pricing: finalPricing,
+            timeline: [{
+                status: 'placed',
+                timestamp: new Date(),
+                note: 'Order has been placed successfully'
+            }]
+        });
+
+        // Clear cart after order
+        await Cart.findOneAndUpdate({ userId }, { items: [] });
+
+        res.status(201).json({ success: true, message: "Order created successfully", order });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to create order", error: error.message });
+    }
+}
+
+export const getUserOrders = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+        
+        res.status(200).json({ success: true, orders });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch orders", error: error.message });
+    }
+}
+
+export const getOrderById = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { orderId } = req.params;
+
+        const order = await Order.findOne({ _id: orderId, userId });
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        res.status(200).json({ success: true, order });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch order", error: error.message });
     }
 }
