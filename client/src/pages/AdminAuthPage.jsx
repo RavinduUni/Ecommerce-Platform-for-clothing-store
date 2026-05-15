@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminContext } from '../context/AdminContext';
+import toast from 'react-hot-toast';
 
 function AdminAuthPage() {
 
@@ -44,8 +45,10 @@ function AdminAuthPage() {
         await adminRegister(formData.name, formData.email, formData.password, formData.confirmPassword, formData.adminCode);
       }
       navigate('/admin/inventory');
+      toast.success("Login successful");
     } catch (error) {
       setError(error.response?.data?.message || "Authentication failed");
+      toast.error(error.response?.data?.message || "Authentication failed");
     } finally {
       setSubmitting(false);
     }

@@ -12,6 +12,16 @@ const AdminContextProvider = ({ children }) => {
 
     const [adminRole, setAdminRole] = useState(null);
     const [adminLoading, setAdminLoading] = useState(true);
+    const [adminOrders, setAdminOrders] = useState([]);
+
+    const fetchAdminOrders = async () => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/admin/orders`);
+            setAdminOrders(data.orders || []);
+        } catch (error) {
+            console.error("Error fetching admin orders:", error);
+        }
+    }
 
     const adminLogout = () => {
         setAdminToken(null);
@@ -61,6 +71,8 @@ const AdminContextProvider = ({ children }) => {
 
             setAdminRole(decoded.role);
             axios.defaults.headers.common['Authorization'] = `Bearer ${adminToken}`;
+            
+            fetchAdminOrders();
 
             const remainingTime = expiry - now;
 
@@ -90,7 +102,9 @@ const AdminContextProvider = ({ children }) => {
         adminLogout,
         adminLogin,
         adminRegister,
-        backendUrl
+        backendUrl,
+        adminOrders,
+        fetchAdminOrders
     }
 
     return (

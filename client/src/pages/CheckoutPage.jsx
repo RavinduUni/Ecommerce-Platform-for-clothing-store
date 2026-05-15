@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../context/AppContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -59,12 +60,12 @@ const CheckoutPage = () => {
 
   const handleCompleteOrder = async () => {
     if (!formData.firstName || !formData.lastName || !formData.address || !formData.city || !formData.zipCode) {
-      alert('Please fill in all shipping address fields');
+      toast.error('Please fill in all shipping address fields');
       return;
     }
 
     if (paymentMethod === 'card' && (!formData.cardNumber || !formData.expiry || !formData.cvv)) {
-      alert('Please fill in all payment details');
+      toast.error('Please fill in all payment details');
       return;
     }
 
@@ -99,10 +100,10 @@ const CheckoutPage = () => {
       };
 
       await createOrder(orderData);
-      alert('Order placed successfully!');
+      toast.success('Order placed successfully!');
       navigate('/dashboard');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to place order');
+      toast.error(error.response?.data?.message || 'Failed to place order');
     } finally {
       setIsProcessing(false);
     }

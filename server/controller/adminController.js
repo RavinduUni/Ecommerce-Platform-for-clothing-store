@@ -1,6 +1,7 @@
 import Admin from "../models/Admin.js";
 import bcrypt from "bcrypt";
 import { generateAdminToken } from "../utils/generateToken.js";
+import Order from "../models/Order.js";
 
 export const adminLogin = async (req, res) => {
     try {
@@ -65,5 +66,19 @@ export const adminRegister = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ message: "Admin registration failed" });
+    }
+}
+
+export const getUserOrders = async (req, res) => {
+    try {
+        const orders = await Order.find().populate("userId", "name email").sort({createdAt: -1});
+
+        if(!orders){
+            return res.status(404).json({message: "No orders found"});
+        }
+
+        return res.status(200).json({success: true, orders });
+    } catch (error) {
+        return res.status(500).json({success: false, message: "Server error", error: error.message });
     }
 }

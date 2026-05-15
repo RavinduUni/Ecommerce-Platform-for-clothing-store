@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../context/AppContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const ProductDetailsPage = () => {
 
@@ -53,7 +54,7 @@ const ProductDetailsPage = () => {
     try {
 
       if (!selectedSize) {
-        alert("Please select a size before adding to cart.");
+        toast.error("Please select a size before adding to cart.");
         return;
       }
 
@@ -69,11 +70,10 @@ const ProductDetailsPage = () => {
         throw new Error(data.message || "Failed to add to cart");
       }
 
-      alert("Product added to cart successfully!");
-      fetchCart();
+      toast.success("Product added to cart successfully!");
     } catch (error) {
       console.log(error);
-      alert(error.response?.data?.message || error.message || "Error adding to cart");
+      toast.error(error.response?.data?.message || error.message || "Error adding to cart");
     } finally {
       setIsAddingToCart(false);
     }

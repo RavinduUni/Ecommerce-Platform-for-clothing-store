@@ -12,11 +12,14 @@ import UserDashboardPage from './pages/UserDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminContextProvider from './context/AdminContext';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
+
   return (
     <Router>
       <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+        <Toaster position="top-right" />
         <AdminContextProvider>
           <div className="layout-container flex h-full grow flex-col bg-background-light dark:bg-background-dark text-[#181611] dark:text-[#f4f3f0]">
             <Routes>

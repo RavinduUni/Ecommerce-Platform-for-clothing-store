@@ -3,9 +3,11 @@ import { useContext, useState, useRef, useEffect } from 'react';
 import { AppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { AdminContext } from '../context/AdminContext';
+import toast from 'react-hot-toast';
 
 const InventoryManagementPage = () => {
   const [showModal, setShowModal] = useState(false);
+  const [editProductId, setEditProductId] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState([]);
@@ -30,8 +32,25 @@ const InventoryManagementPage = () => {
   const navigate = useNavigate();
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-  const { allProducts, orders } = useContext(AppContext);
-  const { adminLogout} = useContext(AdminContext);
+  const [adminOrders, setAdminOrders] = useState([]);
+  const { allProducts, fetchProducts } = useContext(AppContext);
+  const { adminLogout, adminToken } = useContext(AdminContext);
+
+  useEffect(() => {
+    const fetchAdminOrders = async () => {
+      try {
+        const { data } = await axios.get(`${backendUrl}/api/admin/orders`);
+        if (data.success) {
+          setAdminOrders(data.orders);
+        }
+      } catch (error) {
+        console.error("Error fetching admin orders:", error);
+      }
+    };
+    if (adminToken) {
+      fetchAdminOrders();
+    }
+  }, [adminToken, backendUrl]);
 
   // Handle clicking outside dropdown
   useEffect(() => {
@@ -75,19 +94,19 @@ const InventoryManagementPage = () => {
     for (let file of fileArray) {
       // Check if we already have 3 images
       if (uploadedImages.length + validFiles.length >= 3) {
-        alert('You can only upload up to 3 images');
+        toast.error('You can only upload up to 3 images');
         break;
       }
 
       // Validate file type
       if (!file.type.match('image/(jpeg|jpg|png)')) {
-        alert(`${file.name} is not a valid image. Only JPG and PNG files are allowed.`);
+        toast.error(`${file.name} is not a valid image. Only JPG and PNG files are allowed.`);
         continue;
       }
 
       // Validate file size (2MB = 2 * 1024 * 1024 bytes)
       if (file.size > 2 * 1024 * 1024) {
-        alert(`${file.name} is too large. Maximum file size is 2MB.`);
+        toast.error(`${file.name} is too large. Maximum file size is 2MB.`);
         continue;
       }
 
@@ -141,6 +160,7 @@ const InventoryManagementPage = () => {
 
   const handleModalClose = () => {
     setShowModal(false);
+    setEditProductId(null);
     setUploadedImages([]);
     setSelectedSizes([]);
     setProduct({
@@ -178,17 +198,58 @@ const InventoryManagementPage = () => {
     );
   };
 
+  const handleEditClick = (prod) => {
+    setEditProductId(prod._id);
+    setProduct({
+      name: prod.name || '',
+      sku: prod.sku || '',
+      category: prod.category || '',
+      description: prod.description || '',
+      originalPrice: prod.price || '',
+      discountedPrice: prod.discountPrice || '',
+      images: prod.images || [],
+      sizes: prod.sizes || []
+    });
+
+    if (prod.images) {
+      const imgs = prod.images.map((imgUrl, index) => ({
+        id: `existing-${index}`,
+        preview: imgUrl,
+        isExisting: true,
+        url: imgUrl
+      }));
+      setUploadedImages(imgs);
+    } else {
+      setUploadedImages([]);
+    }
+
+    if (prod.availableSizes) {
+      const sizesToSet = prod.availableSizes.map(s => ({
+        size: s.size,
+        stock: s.qty,
+        skuSuffix: s.skuSuffix || `-${s.size}-BLK`
+      }));
+      setSelectedSizes(sizesToSet);
+    } else {
+      setSelectedSizes([]);
+    }
+
+    setShowModal(true);
+  };
+
   const publishProduct = async (e) => {
     e.preventDefault();
 
     try {
 
       if (!product.name || !product.sku) {
-        return alert("Name and SKU required");
+        toast.error("Name and SKU required");
+        return;
       }
 
       if (uploadedImages.length === 0) {
-        return alert("At least one image required");
+        toast.error("At least one image required");
+        return;
       }
 
       setIsPublishing(true);
@@ -203,30 +264,50 @@ const InventoryManagementPage = () => {
       formData.append('discountedPrice', product.discountedPrice);
 
       // Append images
+      const existingImages = [];
       uploadedImages.forEach((img) => {
-        formData.append('images', img.file);
+        if (img.file) {
+          formData.append('images', img.file);
+        } else if (img.isExisting) {
+          existingImages.push(img.url);
+        }
       });
+      
+      if (existingImages.length > 0) {
+        formData.append('existingImages', JSON.stringify(existingImages));
+      }
 
       // Append sizes as a JSON string
       formData.append('sizes', JSON.stringify(selectedSizes));
 
-      const { data } = await axios.post(`${backendUrl}/api/products/add`, formData, {
+      let url = `${backendUrl}/api/products/add`;
+      let method = 'post';
+
+      if (editProductId) {
+        url = `${backendUrl}/api/products/update/${editProductId}`;
+        method = 'put';
+      }
+
+      const { data } = await axios({
+        method,
+        url,
+        data: formData,
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
 
       if (!data.success) {
-        throw new Error(data.message || 'Failed to publish product');
+        throw new Error(data.message || `Failed to ${editProductId ? 'update' : 'publish'} product`);
       }
 
-      alert('Product published successfully!');
+      toast.success(`Product ${editProductId ? 'updated' : 'published'} successfully!`);
 
       await fetchProducts();
 
       handleModalClose();
     } catch (error) {
-      alert(error.message || 'An error occurred while publishing the product.');
+      toast.error(error.message || `An error occurred while ${editProductId ? 'updating' : 'publishing'} the product.`);
     } finally {
       setIsPublishing(false);
     }
@@ -240,6 +321,24 @@ const InventoryManagementPage = () => {
     const matchesCategory = filterCategory === 'ALL' || product.category?.toUpperCase() === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const handleDeleteProduct = async (productId) => {
+    try {
+      setIsPublishing(true);
+      const { data } = await axios.delete(`${backendUrl}/api/products/${productId}`);
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to delete product');
+      }
+
+      toast.success('Product deleted successfully!');
+      await fetchProducts();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete product');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   const ITEMS_PER_PAGE = 4;
   const [currentPage, setCurrentPage] = useState(1);
@@ -268,8 +367,8 @@ const InventoryManagementPage = () => {
           <div className="w-full max-w-4xl bg-white dark:bg-slate-950 h-full overflow-y-auto shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800">
             <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-950/95 backdrop-blur px-8 py-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Add New Product</h2>
-                <p className="text-xs text-slate-500 font-medium">Create a new entry in your luxury collection</p>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{editProductId ? 'Update Product' : 'Add New Product'}</h2>
+                <p className="text-xs text-slate-500 font-medium">{editProductId ? 'Update the details of your luxury collection entry' : 'Create a new entry in your luxury collection'}</p>
               </div>
               <button className="size-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={handleModalClose}>
                 <span className="material-symbols-outlined">close</span>
@@ -556,12 +655,12 @@ const InventoryManagementPage = () => {
                       <span className="material-symbols-outlined animate-spin">
                         progress_activity
                       </span>
-                      Publishing...
+                      {editProductId ? 'Updating...' : 'Publishing...'}
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined">save</span>
-                      Publish Product
+                      <span className="material-symbols-outlined">{editProductId ? 'update' : 'save'}</span>
+                      {editProductId ? 'Update Product' : 'Publish Product'}
                     </>
                   )}
                 </button>
@@ -579,9 +678,9 @@ const InventoryManagementPage = () => {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="size-8 bg-primary rounded flex items-center justify-center text-white">
-                  <span className="material-symbols-outlined">diamond</span>
+                  <span className="material-symbols-outlined">person</span>
                 </div>
-                <h1 className="text-xl font-bold tracking-tight">LUXE <span className="text-primary">ADMIN</span></h1>
+                <h1 className="text-xl font-bold tracking-tight">ADMIN <span className="text-primary">DASHBOARD</span></h1>
               </div>
               <nav className="hidden md:flex items-center gap-6 ml-4">
                 <button 
@@ -730,10 +829,12 @@ const InventoryManagementPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-primary transition-colors">
+                        <button className="p-2 text-slate-400 hover:text-primary transition-colors"
+                          onClick={() => handleEditClick(product)}>
                           <span className="material-symbols-outlined text-xl">edit_square</span>
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                        <button className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          onClick={() => handleDeleteProduct(product._id)}>
                           <span className="material-symbols-outlined text-xl">delete</span>
                         </button>
                       </td>
@@ -821,7 +922,7 @@ const InventoryManagementPage = () => {
                     <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">+12.5%</span>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Total Orders</p>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white">{orders.length}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">{adminOrders.length}</p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between mb-3">
@@ -832,7 +933,7 @@ const InventoryManagementPage = () => {
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Total Revenue</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white">
-                    ${orders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0).toFixed(2)}
+                    ${adminOrders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0).toFixed(2)}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -841,12 +942,12 @@ const InventoryManagementPage = () => {
                       <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">schedule</span>
                     </div>
                     <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                      {orders.filter(o => o.status === 'placed' || o.status === 'processing').length} active
+                      {adminOrders.filter(o => o.status === 'placed' || o.status === 'processing').length} active
                     </span>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Pending Orders</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white">
-                    {orders.filter(o => o.status === 'placed' || o.status === 'processing').length}
+                    {adminOrders.filter(o => o.status === 'placed' || o.status === 'processing').length}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -855,12 +956,12 @@ const InventoryManagementPage = () => {
                       <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
                     </div>
                     <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                      {orders.filter(o => o.status === 'delivered').length}
+                      {adminOrders.filter(o => o.status === 'delivered').length}
                     </span>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Delivered</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white">
-                    {orders.filter(o => o.status === 'delivered').length}
+                    {adminOrders.filter(o => o.status === 'delivered').length}
                   </p>
                 </div>
               </div>
@@ -880,7 +981,7 @@ const InventoryManagementPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {orders.map((order) => {
+                      {adminOrders.map((order) => {
                         const statusConfig = {
                           delivered: { color: 'green', icon: 'check_circle' },
                           processing: { color: 'blue', icon: 'autorenew' },
@@ -901,8 +1002,8 @@ const InventoryManagementPage = () => {
                                   <span className="material-symbols-outlined text-slate-400 text-lg">person</span>
                                 </div>
                                 <div>
-                                  <p className="font-bold text-slate-900 dark:text-white text-sm">{order.shippingAddress?.fullName || 'N/A'}</p>
-                                  <p className="text-xs text-slate-500">{order.shippingAddress?.email || 'N/A'}</p>
+                                  <p className="font-bold text-slate-900 dark:text-white text-sm">{order.shippingAddress?.fullName || order.userId?.name || 'N/A'}</p>
+                                  <p className="text-xs text-slate-500">{order.shippingAddress?.email || order.userId?.email || 'N/A'}</p>
                                 </div>
                               </div>
                             </td>
@@ -933,7 +1034,7 @@ const InventoryManagementPage = () => {
                 {/* Orders Pagination */}
                 <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <p className="text-xs font-medium text-slate-500">
-                    Showing <span className="font-bold text-slate-900 dark:text-white">1-{orders.length}</span> of <span className="font-bold text-slate-900 dark:text-white">{orders.length}</span> orders
+                    Showing <span className="font-bold text-slate-900 dark:text-white">1-{adminOrders.length}</span> of <span className="font-bold text-slate-900 dark:text-white">{adminOrders.length}</span> orders
                   </p>
                   <div className="flex items-center gap-2">
                     <button className="size-8 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 cursor-not-allowed opacity-40">
@@ -954,25 +1055,25 @@ const InventoryManagementPage = () => {
                 <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Average Order Value</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white">
-                    ${orders.length > 0 ? (orders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0) / orders.filter(o => o.status !== 'cancelled').length).toFixed(2) : '0.00'}
+                    ${adminOrders.length > 0 ? (adminOrders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.pricing?.total || 0), 0) / adminOrders.filter(o => o.status !== 'cancelled').length).toFixed(2) : '0.00'}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Processing</p>
                   <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                    {orders.filter(o => o.status === 'processing').length}
+                    {adminOrders.filter(o => o.status === 'processing').length}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">In Transit</p>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
-                    {orders.filter(o => o.status === 'shipped').length}
+                    {adminOrders.filter(o => o.status === 'shipped').length}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Cancelled</p>
                   <p className="text-2xl font-black text-red-500">
-                    {orders.filter(o => o.status === 'cancelled').length}
+                    {adminOrders.filter(o => o.status === 'cancelled').length}
                   </p>
                 </div>
               </div>
